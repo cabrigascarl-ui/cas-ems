@@ -1,0 +1,88 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "meta": {
+      "bootstrapAdminEmail": {
+        ".read": false,
+        ".write": false
+      },
+      "adminExists": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === root.child('meta/bootstrapAdminEmail').val() && data.val() !== true && newData.val() === true"
+      }
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".indexOn": ["role", "status"],
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || (root.child('users').child(auth.uid).child('status').val() === 'approved' && root.child('users').child(auth.uid).child('role').val() === 'admin'))",
+        ".write": "auth != null && (
+          (auth.uid === $uid && !data.exists() && (
+            (newData.child('role').val() === 'borrower' && newData.child('status').val() === 'pending' && newData.child('email').val() === auth.token.email) ||
+            (newData.child('role').val() === 'admin' && newData.child('status').val() === 'approved' && newData.child('email').val() === auth.token.email && auth.token.email_verified === true && auth.token.email === root.child('meta/bootstrapAdminEmail').val() && root.child('meta/adminExists').val() !== true)
+          )) ||
+          (root.child('users').child(auth.uid).child('status').val() === 'approved' && root.child('users').child(auth.uid).child('role').val() === 'admin')
+        )"
+      }
+    },
+
+    "categories": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved'",
+      ".indexOn": ["name", "labId"],
+      "$categoryId": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && root.child('users').child(auth.uid).child('labId').val() === newData.child('labId').val() && (!data.exists() || data.child('labId').val() === newData.child('labId').val()))
+        )"
+      }
+    },
+
+    "equipment": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved'",
+      ".indexOn": ["labId", "categoryId", "status", "itemType"],
+      "$equipmentId": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && root.child('users').child(auth.uid).child('labId').val() === newData.child('labId').val() && (!data.exists() || data.child('labId').val() === newData.child('labId').val()))
+        )"
+      }
+    },
+
+    "transactions": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (root.child('users').child(auth.uid).child('role').val() === 'borrower' && query.orderByChild === 'borrowerId' && query.equalTo === auth.uid) || (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && ((query.orderByChild === 'labId' && query.equalTo === root.child('users').child(auth.uid).child('labId').val()) || (query.orderByChild === 'equipmentId' && root.child('equipment').child(query.equalTo).child('labId').val() === root.child('users').child(auth.uid).child('labId').val()))))",
+      ".indexOn": ["borrowerId", "labId", "status", "equipmentId"],
+      "$transactionId": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (root.child('users').child(auth.uid).child('role').val() === 'borrower' && data.child('borrowerId').val() === auth.uid) || (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && data.child('labId').val() === root.child('users').child(auth.uid).child('labId').val()))",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (
+          (root.child('users').child(auth.uid).child('role').val() === 'borrower' && !data.exists() && newData.child('borrowerId').val() === auth.uid && newData.child('status').val() === 'pending') ||
+          (root.child('users').child(auth.uid).child('role').val() === 'borrower' && data.exists() && data.child('borrowerId').val() === auth.uid && data.child('status').val() === 'pending' && newData.child('status').val() === 'cancelled' && newData.child('borrowerId').val() === data.child('borrowerId').val() && newData.child('labId').val() === data.child('labId').val() && newData.child('categoryId').val() === data.child('categoryId').val() && newData.child('equipmentId').val() === data.child('equipmentId').val() && newData.child('quantity').val() === data.child('quantity').val()) ||
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && root.child('users').child(auth.uid).child('labId').val() === (data.exists() ? data.child('labId').val() : newData.child('labId').val()) && (!data.exists() || (newData.child('labId').val() === data.child('labId').val() && newData.child('borrowerId').val() === data.child('borrowerId').val() && newData.child('categoryId').val() === data.child('categoryId').val())))
+        )"
+      }
+    },
+
+    "maintenance": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && ((query.orderByChild === 'labId' && query.equalTo === root.child('users').child(auth.uid).child('labId').val()) || (query.orderByChild === 'equipmentId' && root.child('equipment').child(query.equalTo).child('labId').val() === root.child('users').child(auth.uid).child('labId').val()))))",
+      ".indexOn": ["equipmentId", "labId"],
+      "$recordId": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && data.child('labId').val() === root.child('users').child(auth.uid).child('labId').val()))",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          (root.child('users').child(auth.uid).child('role').val() === 'lab_custodian' && !data.exists() && root.child('users').child(auth.uid).child('labId').val() === newData.child('labId').val() && newData.child('recordedBy').val() === auth.uid)
+        )"
+      }
+    },
+
+    "activityLogs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$logId": {
+        ".write": "auth != null && !data.exists() && newData.child('userId').val() === auth.uid",
+        ".read": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'approved' && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    }
+  }
+}
